@@ -11,31 +11,28 @@ struct student
 	int  mark[3];
 };
 
-student students[MAX_STUDENTS];
-int count=0;
-
-void Write()
+int Get()
 {
-	FILE *f = fopen("data.bin","wb+");
-	fwrite(&count,sizeof(int),1,f);
-	for(int i=0;i<count;i++)
-		fwrite(&students[i],sizeof(struct student),1,f);
+	int count = 0;
+	student st;
+	FILE *f = fopen("data.bin","rb");
+	fseek(f,0,SEEK_SET);
+	while(fread(&st,sizeof(student),1,f)) count++;
 	fclose(f);
+	return count;
 }
 
-void Read()
+student Read(int pos)
 {
+	student st;
+	
 	FILE *f = fopen("data.bin","rb");
-	int c;
-	if (fread(&c,sizeof(int),1,f)==0) 
-	{
-		count=0;
-		return;
-	}
-	else count=c;
-	for(int i=0;i<count;i++)
-		fread(&students[i],sizeof(struct student),1,f);
+	fseek(f,0,SEEK_SET);
+	fseek(f,sizeof(student)*pos,SEEK_SET);
+	fread(&st,sizeof(student),1,f);
 	fclose(f);
+	
+	return st;
 }
 
 student In()
@@ -62,30 +59,50 @@ void  Out(student t,bool line)
 
 void Add()
 {
-	if(count>MAX_STUDENTS) return;
-	students[count]=In();
-	count++;
+	student st=In();
+	FILE *f = fopen("data.bin","a+b");
+	fwrite(&st,sizeof(struct student),1,f);
+	fclose(f);
 }
 
 void Edit()
 {
-	printf("Which record we are editing?\n");
-	int c;
-	scanf("%d",&c);
-	if( (c>count-1) || (c<0) ) return;
-	students[c]=In();
+	int count= Get(),pos;
+	if(count==0) return;
+	
+	printf("Which we are editing? 0 - %d \n",count);	
+	
+	scanf("%d",&pos);
+	
+	student stb=In();
+		
+	FILE *tmp=fopen("tmp.bin","w+b");
+	student st;
+	while(count--)
+	{
+		st=Read(count);
+		if((count-1)==pos) st = stb;
+		fwrite(&st,sizeof(student),1,tmp);
+	}
+	
+	fclose(tmp);
+	remove("data.bin");
+	rename("tmp.bin","data.bin");
 }
 
 void Count_twos()
 {
 	system("cls");
 	int m[3];
+	student st;
+	int count = Get();
 	m[0]=m[1]=m[2]=0;
 	for(int i=0;i<count;i++)
 	{
-		if(students[i].mark[0]==2) m[0]++;
-		if(students[i].mark[1]==2) m[1]++;
-		if(students[i].mark[2]==2) m[2]++;
+		st=Read(i);
+		if(st.mark[0]==2) m[0]++;
+		if(st.mark[1]==2) m[1]++;
+		if(st.mark[2]==2) m[2]++;
 	}
 	printf("There are : \n %d two-s for physics\n %d two-s for math\n %d two-s for comp. science\n",m[0],m[1],m[2]);
 	getch();
@@ -94,6 +111,8 @@ void Count_twos()
 void Print()
 {
 	system("cls");
+	int count=Get();
+		
 	if(count==0)
 	{
 		printf("There are no students\n");
@@ -104,26 +123,33 @@ void Print()
 	printf("³ %15s ³ %1c ³ %1c ³ %1c ³\n","Name",'P','M','C');
 	printf("ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄ´\n");
 	for(int i=0;i<count;i++)
-		Out(students[i],i==count-1?0:1);
+		Out(Read(i),i==count-1?0:1);
 	printf("ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÁÄÄÄÁÄÄÄÙ\n");
 	getch();
 }
 
 void Del()
 {
-	int c;
-	printf("Which record we are deleting?\n");
-	scanf("%d",&c);
-	if(c<0) return;
-	for(int i=c;i<count-1;i++)
-		students[i]=students[i+1];
+	int count = Get();
+	if(count==0) return;
+	FILE *tmp=fopen("tmp.bin","w+b");
+	student st;
 	count--;
-	getch();
+	while(count--)
+	{
+		st=Read(count);
+		fwrite(&st,sizeof(student),1,tmp);
+	}
+	fclose(tmp);
+	remove("data.bin");
+	rename("tmp.bin","data.bin");
 }
 
 void Show_bad()
 {
 	system("cls");
+	student st;
+	int count = Get();
 	if(count==0)
 	{
 		printf("There are no students\n");
@@ -135,7 +161,8 @@ void Show_bad()
 	printf("ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÅÄÄÄÅÄÄÄ´\n");
 	for(int i=0;i<count;i++)
 	{
-		if((students[i].mark[0]==2)||(students[i].mark[1]==2)||(students[i].mark[2]==2)) Out(students[i],i==count-1?0:1);
+		st=Read(i);
+		if((st.mark[0]==2)||(st.mark[1]==2)||(st.mark[2]==2)) Out(st,i==count-1?0:1);
 	}	
 	printf("ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÁÄÄÄÁÄÄÄÙ\n");
 	getch();	
@@ -143,11 +170,11 @@ void Show_bad()
 
 int main(void)
 {
-	Read();
 	int cycle=1;
 	while (cycle)
 	{
 		system("cls");
+		printf("In file : %d records \n\n",Get());
 		printf("What to do :\n  1 - Add a student\n  2 - Del student\n  3 - Show count of two-s\n  4 - Show bad students\n  5 - Show all students\n  6 - Edit student\n  0 - Exit\n");
 		scanf("%d",&cycle);
 		switch(cycle)
@@ -175,6 +202,5 @@ int main(void)
 				break;
 		}
 	}	
-	Write();
 	return 0;
 }
